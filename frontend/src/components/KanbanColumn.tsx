@@ -1,71 +1,78 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import type { Card, Column } from "@/lib/kanban";
 import { KanbanCard } from "@/components/KanbanCard";
 import { NewCardForm } from "@/components/NewCardForm";
+import type { Card, Column } from "@/lib/kanban";
 
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
-  onRename: (columnId: string, title: string) => void;
-  onAddCard: (columnId: string, title: string, details: string) => void;
-  onDeleteCard: (columnId: string, cardId: string) => void;
+  columns: Column[];
+  onRename: (columnId: string, title: string) => Promise<boolean>;
+  onAddCard: (columnId: string, title: string, details: string) => Promise<boolean>;
+  onMoveCard: (cardId: string, destinationColumnId: string) => Promise<boolean>;
+  onEditCard: (cardId: string, title: string, details: string) => Promise<boolean>;
 };
 
 export const KanbanColumn = ({
   column,
   cards,
+  columns,
   onRename,
   onAddCard,
-  onDeleteCard,
+  onMoveCard,
+  onEditCard,
 }: KanbanColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [title, setTitle] = useState(column.title);
+
+  useEffect(() => setTitle(column.title), [column.title]);
+
+  const saveTitle = () => {
+    const nextTitle = title.trim();
+    if (!nextTitle) {
+      setTitle(column.title);
+      return;
+    }
+    if (nextTitle !== column.title) void onRename(column.id, nextTitle);
+  };
 
   return (
-    <section
-      ref={setNodeRef}
-      className={clsx(
-        "flex min-h-[520px] flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] transition",
-        isOver && "ring-2 ring-[var(--accent-yellow)]"
-      )}
-      data-testid={`column-${column.id}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="w-full">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-10 rounded-full bg-[var(--accent-yellow)]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
-              {cards.length} cards
-            </span>
-          </div>
-          <input
-            value={column.title}
-            onChange={(event) => onRename(column.id, event.target.value)}
-            className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
-            aria-label="Column title"
-          />
-        </div>
-      </div>
-      <div className="mt-4 flex flex-1 flex-col gap-3">
+    <section ref={setNodeRef} className={clsx("kanban-column", isOver && "kanban-column-over")} data-testid={`column-${column.id}`}>
+      <header className="column-header">
+        <div className="column-marker" aria-hidden="true" />
+        <p>{cards.length} {cards.length === 1 ? "card" : "cards"}</p>
+        <label htmlFor={`column-title-${column.id}`}>Column name</label>
+        <input
+          id={`column-title-${column.id}`}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.nativeEvent.isComposing) event.currentTarget.blur();
+          }}
+        />
+      </header>
+      <div className="column-cards">
         <SortableContext items={column.cardIds} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <KanbanCard
               key={card.id}
               card={card}
-              onDelete={(cardId) => onDeleteCard(column.id, cardId)}
+              columnId={column.id}
+              columns={columns}
+              onMove={onMoveCard}
+              onEdit={onEditCard}
             />
           ))}
         </SortableContext>
-        {cards.length === 0 && (
-          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[var(--stroke)] px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
-            Drop a card here
-          </div>
-        )}
+        {cards.length === 0 ? <p className="column-empty">Drop a card here or use a card’s Move to control.</p> : null}
       </div>
-      <NewCardForm
-        onAdd={(title, details) => onAddCard(column.id, title, details)}
-      />
+      <NewCardForm columnId={column.id} onAdd={(title, details) => onAddCard(column.id, title, details)} />
     </section>
   );
 };

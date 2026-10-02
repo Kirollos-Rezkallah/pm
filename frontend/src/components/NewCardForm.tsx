@@ -1,72 +1,87 @@
-import { useState, type FormEvent } from "react";
+"use client";
+
+import { useRef, useState, type FormEvent } from "react";
 
 const initialFormState = { title: "", details: "" };
 
 type NewCardFormProps = {
-  onAdd: (title: string, details: string) => void;
+  columnId: string;
+  onAdd: (title: string, details: string) => Promise<boolean>;
 };
 
-export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
+export const NewCardForm = ({ columnId, onAdd }: NewCardFormProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [formState, setFormState] = useState(initialFormState);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formState.title.trim()) {
+      setError("Enter a card title.");
+      titleRef.current?.focus();
       return;
     }
-    onAdd(formState.title.trim(), formState.details.trim());
-    setFormState(initialFormState);
-    setIsOpen(false);
+    setError("");
+    setIsSaving(true);
+    const saved = await onAdd(formState.title.trim(), formState.details.trim());
+    setIsSaving(false);
+    if (saved) {
+      setFormState(initialFormState);
+      setIsOpen(false);
+    } else {
+      setError("The card could not be saved. Retry from this form or the board status line.");
+    }
   };
 
   return (
-    <div className="mt-4">
+    <div className="new-card">
       {isOpen ? (
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            value={formState.title}
-            onChange={(event) =>
-              setFormState((prev) => ({ ...prev, title: event.target.value }))
-            }
-            placeholder="Card title"
-            className="w-full rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm font-medium text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
-            required
-          />
-          <textarea
-            value={formState.details}
-            onChange={(event) =>
-              setFormState((prev) => ({ ...prev, details: event.target.value }))
-            }
-            placeholder="Details"
-            rows={3}
-            className="w-full resize-none rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--gray-text)] outline-none transition focus:border-[var(--primary-blue)]"
-          />
-          <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              className="rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110"
-            >
-              Add card
+        <form noValidate onSubmit={handleSubmit} className="new-card-form">
+          {error ? <div className="form-alert" role="alert">{error}</div> : null}
+          <div className="field-group">
+            <label htmlFor={`new-card-title-${columnId}`}>Card title</label>
+            <input
+              ref={titleRef}
+              id={`new-card-title-${columnId}`}
+              value={formState.title}
+              onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? "new-card-error" : undefined}
+            />
+          </div>
+          <div className="field-group">
+            <label htmlFor={`new-card-details-${columnId}`}>Details</label>
+            <textarea
+              id={`new-card-details-${columnId}`}
+              className="resize-none"
+              value={formState.details}
+              onChange={(event) => setFormState((prev) => ({ ...prev, details: event.target.value }))}
+              rows={3}
+            />
+          </div>
+          {error ? <p id="new-card-error" className="sr-only">{error}</p> : null}
+          <div className="form-actions">
+            <button type="submit" className="button button-primary" disabled={isSaving} aria-busy={isSaving}>
+              {isSaving ? "Adding…" : "Add card"}
             </button>
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 setFormState(initialFormState);
+                setError("");
               }}
-              className="rounded-full border border-[var(--stroke)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
+              className="button button-secondary"
+              disabled={isSaving}
             >
               Cancel
             </button>
           </div>
         </form>
       ) : (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="w-full rounded-full border border-dashed border-[var(--stroke)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--primary-blue)] transition hover:border-[var(--primary-blue)]"
-        >
+        <button type="button" onClick={() => setIsOpen(true)} className="button button-add-card">
           Add a card
         </button>
       )}

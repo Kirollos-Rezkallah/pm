@@ -1,53 +1,70 @@
+"use client";
+
+import { useState } from "react";
+import clsx from "clsx";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import clsx from "clsx";
-import type { Card } from "@/lib/kanban";
+import { CardEditorDialog } from "@/components/CardEditorDialog";
+import type { Card, Column } from "@/lib/kanban";
 
 type KanbanCardProps = {
   card: Card;
-  onDelete: (cardId: string) => void;
+  columnId: string;
+  columns: Column[];
+  onMove: (cardId: string, destinationColumnId: string) => Promise<boolean>;
+  onEdit: (cardId: string, title: string, details: string) => Promise<boolean>;
 };
 
-export const KanbanCard = ({ card, onDelete }: KanbanCardProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: card.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+export const KanbanCard = ({ card, columnId, columns, onMove, onEdit }: KanbanCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <article
-      ref={setNodeRef}
-      style={style}
-      className={clsx(
-        "rounded-2xl border border-transparent bg-white px-4 py-4 shadow-[0_12px_24px_rgba(3,33,71,0.08)]",
-        "transition-all duration-150",
-        isDragging && "opacity-60 shadow-[0_18px_32px_rgba(3,33,71,0.16)]"
-      )}
-      {...attributes}
-      {...listeners}
-      data-testid={`card-${card.id}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h4 className="font-display text-base font-semibold text-[var(--navy-dark)]">
-            {card.title}
-          </h4>
-          <p className="mt-2 text-sm leading-6 text-[var(--gray-text)]">
-            {card.details}
-          </p>
+    <>
+      <article
+        ref={setNodeRef}
+        style={style}
+        className={clsx("kanban-card", isDragging && "kanban-card-dragging")}
+        data-testid={`card-${card.id}`}
+      >
+        <div className="card-heading">
+          <h3>{card.title}</h3>
+          <button
+            type="button"
+            className="drag-handle"
+            aria-label={`Edit ${card.title}; drag to move it`}
+            onClick={() => setIsEditing(true)}
+            {...attributes}
+            {...listeners}
+          >
+            Edit / drag
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => onDelete(card.id)}
-          className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[var(--gray-text)] transition hover:border-[var(--stroke)] hover:text-[var(--navy-dark)]"
-          aria-label={`Delete ${card.title}`}
-        >
-          Remove
-        </button>
-      </div>
-    </article>
+        <p className="card-details">{card.details || "No details yet."}</p>
+        <div className="card-actions">
+          <label className="move-control" htmlFor={`move-${card.id}`}>
+            Move to
+            <select
+              id={`move-${card.id}`}
+              value={columnId}
+              onChange={(event) => void onMove(card.id, event.target.value)}
+              aria-label={`Move ${card.title} to another column`}
+            >
+              {columns.map((column) => (
+                <option key={column.id} value={column.id}>{column.title}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </article>
+      {isEditing ? (
+        <CardEditorDialog
+          card={card}
+          onClose={() => setIsEditing(false)}
+          onSave={(title, details) => onEdit(card.id, title, details)}
+        />
+      ) : null}
+    </>
   );
 };

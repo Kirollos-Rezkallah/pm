@@ -1,0 +1,19 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["frontend/src"],
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Select/Listbox", "Form", "Scrollbar", "Toast", "CRUD"],
+  "ownership": {
+    "Select/Listbox": "native"
+  },
+  "requiredCommands": ["unit", "e2e", "backend"],
+  "commands": {
+    "unit": "npm.cmd run test:unit --prefix frontend",
+    "e2e": "npm.cmd run test:e2e --prefix frontend",
+    "backend": "uv --directory backend run pytest"
+  },
+  "evidence": {
+    "crudFullFlow": "frontend/tests/kanban.spec.ts",
+    "failurePaths": "backend/tests/test_main.py"
+  }
+}
