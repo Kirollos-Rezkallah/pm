@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import clsx from "clsx";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -29,8 +29,12 @@ export const KanbanColumn = ({
 }: KanbanColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [title, setTitle] = useState(column.title);
+  const [previousColumnTitle, setPreviousColumnTitle] = useState(column.title);
 
-  useEffect(() => setTitle(column.title), [column.title]);
+  if (column.title !== previousColumnTitle) {
+    setPreviousColumnTitle(column.title);
+    setTitle(column.title);
+  }
 
   const saveTitle = () => {
     const nextTitle = title.trim();

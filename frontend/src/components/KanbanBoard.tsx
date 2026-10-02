@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  closestCorners,
   DndContext,
   DragOverlay,
+  rectIntersection,
   PointerSensor,
   useSensor,
   useSensors,
@@ -33,12 +33,12 @@ export const KanbanBoard = () => {
   const saveQueue = useRef<Promise<boolean>>(Promise.resolve(true));
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
-  const setCurrentBoard = (nextBoard: BoardData) => {
+  const setCurrentBoard = useCallback((nextBoard: BoardData) => {
     boardRef.current = nextBoard;
     setBoard(nextBoard);
-  };
+  }, []);
 
-  const loadWorkspace = async (knownUsername?: string) => {
+  const loadWorkspace = useCallback(async (knownUsername?: string) => {
     setAppState("loading");
     setLoadError("");
     try {
@@ -55,11 +55,11 @@ export const KanbanBoard = () => {
         setAppState("error");
       }
     }
-  };
+  }, [setCurrentBoard]);
 
   useEffect(() => {
     void loadWorkspace();
-  }, []);
+  }, [loadWorkspace]);
 
   const signIn = async (nextUsername: string, password: string) => {
     setLoginError("");
@@ -203,7 +203,7 @@ export const KanbanBoard = () => {
             <p id="board-heading">{saveStatus}</p>
             {saveError ? <button type="button" className="text-button" onClick={retrySave}>Retry save</button> : null}
           </div>
-          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <section className="board-columns" aria-label="Kanban board">
               {board.columns.map((column) => (
                 <KanbanColumn
